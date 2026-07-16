@@ -129,6 +129,9 @@ section { margin-bottom: var(--spacing-2xl); }
   transition: all var(--transition-fast);
   font-family: inherit;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .btn-sm { padding: 0.4rem 0.8rem; font-size: var(--font-size-xs); }
@@ -156,15 +159,19 @@ section { margin-bottom: var(--spacing-2xl); }
 .btn-icon:hover { background-color: var(--color-bg-tertiary); }
 
 .btn-table-action {
-  padding: 0.3rem 0.5rem;
+  padding: 0.4rem;
   border-radius: var(--radius-sm);
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 1rem;
-  transition: background-color var(--transition-fast);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
-.btn-table-action:hover { background-color: var(--color-bg-tertiary); }
+.btn-table-action:hover { background-color: var(--color-bg-tertiary); color: var(--color-text); }
+.btn-table-action.btn-delete:hover { color: var(--color-danger); }
 
 /* ==========================================================================
    DASHBOARD CARDS
@@ -321,6 +328,19 @@ textarea { resize: vertical; }
   font-size: var(--font-size-sm);
 }
 
+.expense-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition-fast);
+}
+.expense-table th.sortable:hover { color: var(--color-primary); }
+.sort-indicator {
+  display: inline-block;
+  width: 0.8em;
+  font-size: 0.7em;
+  color: var(--color-primary);
+}
+
 .expense-table tbody tr { transition: background-color var(--transition-fast); }
 .expense-table tbody tr:hover { background-color: var(--color-bg-tertiary); }
 .expense-table tbody tr:last-child td { border-bottom: none; }
@@ -433,6 +453,9 @@ canvas { width: 100% !important; height: auto !important; max-width: 100%; }
 }
 
 .toast {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
   background-color: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-left: 4px solid var(--color-info);
@@ -442,10 +465,28 @@ canvas { width: 100% !important; height: auto !important; max-width: 100%; }
   animation: slideInRight var(--transition-normal);
   font-size: var(--font-size-sm);
 }
+.toast > span { flex: 1; }
 .toast.success { border-left-color: var(--color-success); }
 .toast.error { border-left-color: var(--color-danger); }
 .toast.info { border-left-color: var(--color-info); }
+.toast.warning { border-left-color: var(--color-warning); }
 .toast.fade-out { animation: fadeOut var(--transition-normal) forwards; }
+
+.toast-action {
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast);
+}
+.toast-action:hover { background-color: var(--color-bg-tertiary); }
 
 @keyframes slideInRight {
   from { transform: translateX(120%); opacity: 0; }
@@ -463,8 +504,40 @@ canvas { width: 100% !important; height: auto !important; max-width: 100%; }
   .navbar { padding: 0 var(--spacing-md); }
   .form-row { grid-template-columns: 1fr; }
   .action-bar { flex-direction: column; align-items: stretch; }
-  .action-bar-right { justify-content: stretch; }
-  .action-bar-right .btn { flex: 1; }
+  .action-bar-right { justify-content: stretch; flex-wrap: wrap; }
+  .action-bar-right .btn { flex: 1; justify-content: center; }
+
+  /* Expense table -> stacked cards */
+  .table-wrapper { overflow-x: visible; box-shadow: none; border-radius: 0; }
+  .expense-table { min-width: 0; }
+  .expense-table thead { display: none; }
+  .expense-table tbody { display: flex; flex-direction: column; gap: var(--spacing-md); }
+  .expense-table tr {
+    display: block;
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+  .expense-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: 0.6rem var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .expense-table tr td:last-child { border-bottom: none; }
+  .expense-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-secondary);
+  }
+  .expense-table td[data-label="Hành động"] { justify-content: flex-end; gap: var(--spacing-sm); }
+  .expense-table td[data-label="Hành động"]::before { content: none; }
 }
 
 @media (max-width: 480px) {
@@ -475,4 +548,36 @@ canvas { width: 100% !important; height: auto !important; max-width: 100%; }
   .toast-container { left: var(--spacing-md); right: var(--spacing-md); max-width: none; }
   .form-actions { flex-direction: column; }
   .form-actions .btn { width: 100%; }
+}
+
+/* ==========================================================================
+   PRINT — báo cáo tháng
+   ========================================================================== */
+@media print {
+  .header, .action-bar, .filters, .stats-section, .data-section,
+  .toast-container, .modal { display: none !important; }
+
+  body, .card, .settlement-card, .expense-table {
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+  }
+
+  .container { max-width: 100%; padding: 0; margin: 0; }
+  .card { border: 1px solid #ccc; }
+  .settlement-card { border: 1px solid #ccc; }
+
+  .table-wrapper { overflow: visible; box-shadow: none; }
+  .expense-table { min-width: 0; width: 100%; }
+  .expense-table thead { display: table-header-group !important; }
+  .expense-table tbody { display: table-row-group !important; }
+  .expense-table tr { display: table-row !important; border: none; box-shadow: none; }
+  .expense-table td, .expense-table th {
+    display: table-cell !important;
+    border: 1px solid #ccc;
+    color: #000 !important;
+  }
+  .expense-table td::before { content: none !important; }
+  .expense-table th:last-child, .expense-table td:last-child { display: none !important; }
+  .badge { border: 1px solid #999; background: none !important; color: #000 !important; }
 }

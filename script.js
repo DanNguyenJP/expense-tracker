@@ -26,7 +26,9 @@ const StorageModule = (() => {
     currency: 'VND',
     locale: 'vi-VN',
     darkMode: false,
-    categoryList: DEFAULT_CATEGORIES
+    categoryList: DEFAULT_CATEGORIES,
+    lastExportedAt: null,
+    backupReminderSnoozedUntil: null
   };
 
   const initDefaults = () => {
@@ -224,13 +226,32 @@ const CalcModule = (() => {
    ============================================================================ */
 const FilterModule = (() => {
   let state = { month: '', category: '', paidBy: '', expenseType: '', keyword: '' };
+  let sortBy = 'date';
+  let sortAsc = false;
 
   const setFilter = (key, value) => { state[key] = value; };
   const getFilters = () => ({ ...state });
   const resetFilters = () => { state = { month: '', category: '', paidBy: '', expenseType: '', keyword: '' }; };
 
+  const setSort = (field) => {
+    if (sortBy === field) {
+      sortAsc = !sortAsc;
+    } else {
+      sortBy = field;
+      sortAsc = false;
+    }
+  };
+  const getSort = () => ({ field: sortBy, asc: sortAsc });
+
+  const compareBy = (a, b, field) => {
+    if (field === 'date') return (a.date + a.createdAt).localeCompare(b.date + b.createdAt);
+    if (field === 'amount') return a.amount - b.amount;
+    if (typeof a[field] === 'string') return a[field].localeCompare(b[field]);
+    return 0;
+  };
+
   const applyFilters = (expenses) => {
-    return expenses.filter((e) => {
+    const filtered = expenses.filter((e) => {
       if (state.month && !e.date.startsWith(state.month)) return false;
       if (state.category && e.category !== state.category) return false;
       if (state.paidBy && e.paidBy !== state.paidBy) return false;
@@ -242,10 +263,41 @@ const FilterModule = (() => {
       }
       return true;
     });
+    const sorted = [...filtered].sort((a, b) => {
+      const cmp = compareBy(a, b, sortBy);
+      return sortAsc ? cmp : -cmp;
+    });
+    return sorted;
   };
 
-  return { setFilter, getFilters, resetFilters, applyFilters };
+  return { setFilter, getFilters, resetFilters, applyFilters, setSort, getSort };
 })();
+
+/* ============================================================================
+   ICON MODULE — inline SVG icons (replaces functional emoji, keeps voice emoji)
+   ============================================================================ */
+const Icons = {
+  moon: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>',
+  delete: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
+  duplicate: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  close: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+  export: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>',
+  import: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>',
+  print: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
+  csv: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>',
+  sortAsc: '▲',
+  sortDesc: '▼',
+
+  applyAll() {
+    document.querySelectorAll('[data-icon]').forEach((el) => {
+      const name = el.dataset.icon;
+      if (this[name]) el.innerHTML = this[name];
+    });
+  }
+};
 
 /* ============================================================================
    CHART MODULE — pure Canvas, no libraries
@@ -486,9 +538,7 @@ const RenderModule = (() => {
     emptyState.style.display = 'none';
     tableWrapper.style.display = 'block';
 
-    const sorted = [...expenses].sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt));
-
-    tbody.innerHTML = sorted.map((e) => {
+    tbody.innerHTML = expenses.map((e) => {
       const paidByName = e.paidBy === 'A' ? config.personA.name : config.personB.name;
       const ownerName = e.expenseType === 'Personal' ? (e.owner === 'A' ? config.personA.name : config.personB.name) : '—';
       const typeLabel = e.expenseType === 'Shared' ? 'Chung' : 'Cá nhân';
@@ -496,19 +546,34 @@ const RenderModule = (() => {
       const catLabel = StorageModule.CATEGORY_LABELS_VI[e.category] || e.category;
       return `
         <tr data-id="${e.id}">
-          <td>${e.date}</td>
-          <td>${escapeHtml(e.description)}</td>
-          <td>${catLabel}</td>
-          <td class="amount-cell">${formatCurrency(e.amount)}</td>
-          <td>${paidByName}</td>
-          <td><span class="badge ${badgeClass}">${typeLabel}</span></td>
-          <td>${ownerName}</td>
-          <td>
-            <button class="btn-table-action btn-edit" data-id="${e.id}" title="Sửa" aria-label="Sửa">✏️</button>
-            <button class="btn-table-action btn-delete" data-id="${e.id}" title="Xóa" aria-label="Xóa">🗑️</button>
+          <td data-label="Ngày">${e.date}</td>
+          <td data-label="Mô tả">${escapeHtml(e.description)}</td>
+          <td data-label="Danh mục">${catLabel}</td>
+          <td data-label="Số tiền" class="amount-cell">${formatCurrency(e.amount)}</td>
+          <td data-label="Người trả">${paidByName}</td>
+          <td data-label="Loại"><span class="badge ${badgeClass}">${typeLabel}</span></td>
+          <td data-label="Người chịu">${ownerName}</td>
+          <td data-label="Hành động">
+            <button class="btn-table-action btn-duplicate" data-id="${e.id}" title="Nhân bản" aria-label="Nhân bản">${Icons.duplicate}</button>
+            <button class="btn-table-action btn-edit" data-id="${e.id}" title="Sửa" aria-label="Sửa">${Icons.edit}</button>
+            <button class="btn-table-action btn-delete" data-id="${e.id}" title="Xóa" aria-label="Xóa">${Icons.delete}</button>
           </td>
         </tr>`;
     }).join('');
+
+    updateSortIndicators();
+  };
+
+  const updateSortIndicators = () => {
+    const { field, asc } = FilterModule.getSort();
+    document.querySelectorAll('.expense-table th.sortable').forEach((th) => {
+      const indicator = th.querySelector('.sort-indicator');
+      if (th.dataset.sortField === field) {
+        indicator.textContent = asc ? Icons.sortAsc : Icons.sortDesc;
+      } else {
+        indicator.textContent = '';
+      }
+    });
   };
 
   const escapeHtml = (str) => {
@@ -534,18 +599,37 @@ const RenderModule = (() => {
   };
 
   let toastCounter = 0;
-  const showToast = (message, type = 'info', duration = 3500) => {
+  const showToast = (message, type = 'info', duration = 3500, actionLabel = null, onAction = null) => {
     const container = document.getElementById('toastContainer');
     const id = `toast-${++toastCounter}`;
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.id = id;
-    toast.textContent = message;
-    container.appendChild(toast);
-    setTimeout(() => {
+
+    const text = document.createElement('span');
+    text.textContent = message;
+    toast.appendChild(text);
+
+    const dismiss = () => {
       toast.classList.add('fade-out');
       setTimeout(() => toast.remove(), 260);
-    }, duration);
+    };
+
+    if (actionLabel && onAction) {
+      const actionBtn = document.createElement('button');
+      actionBtn.type = 'button';
+      actionBtn.className = 'toast-action';
+      actionBtn.textContent = actionLabel;
+      actionBtn.addEventListener('click', () => {
+        clearTimeout(timer);
+        onAction();
+        dismiss();
+      });
+      toast.appendChild(actionBtn);
+    }
+
+    container.appendChild(toast);
+    const timer = setTimeout(dismiss, duration);
   };
 
   let confirmResolver = null;
@@ -562,7 +646,7 @@ const RenderModule = (() => {
 
   const toggleDarkMode = (enabled) => {
     document.body.setAttribute('data-theme', enabled ? 'dark' : 'light');
-    document.getElementById('darkModeIcon').textContent = enabled ? '☀️' : '🌙';
+    document.getElementById('darkModeIcon').innerHTML = enabled ? Icons.sun : Icons.moon;
   };
 
   const openModal = (id) => document.getElementById(id).classList.add('active');
@@ -625,6 +709,26 @@ const FormModule = (() => {
     RenderModule.openModal('expenseModal');
   };
 
+  const openDuplicateModal = (id) => {
+    const expense = StorageModule.getExpenses().find((e) => e.id === id);
+    if (!expense) return;
+    RenderModule.renderCategoryOptions(document.getElementById('expenseCategory'), expense.category);
+    document.getElementById('modalTitle').textContent = 'Nhân bản chi tiêu';
+    document.getElementById('expenseId').value = '';
+    document.getElementById('expenseDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('expenseDescription').value = expense.description;
+    document.getElementById('expenseAmount').value = expense.amount;
+    document.getElementById('expensePaidBy').value = expense.paidBy;
+    document.getElementById('expenseType').value = expense.expenseType;
+    document.getElementById('expenseNotes').value = expense.notes || '';
+    handleExpenseTypeChange(expense.expenseType);
+    if (expense.expenseType === 'Personal') {
+      document.getElementById('expenseOwner').value = expense.owner;
+    }
+    RenderModule.openModal('expenseModal');
+    document.getElementById('expenseDescription').focus();
+  };
+
   const handleExpenseTypeChange = (type) => {
     document.getElementById('ownerGroup').style.display = type === 'Personal' ? 'flex' : 'none';
   };
@@ -681,26 +785,67 @@ const FormModule = (() => {
     RenderModule.renderAll();
   };
 
-  return { openAddModal, openEditModal, closeModal: () => RenderModule.closeModal('expenseModal'), handleExpenseTypeChange, handleSubmit, resetForm };
+  return { openAddModal, openEditModal, openDuplicateModal, closeModal: () => RenderModule.closeModal('expenseModal'), handleExpenseTypeChange, handleSubmit, resetForm };
 })();
 
 /* ============================================================================
    IMPORT / EXPORT MODULE
    ============================================================================ */
 const ImportExportModule = (() => {
-  const exportData = () => {
-    const json = StorageModule.exportJSON();
-    const blob = new Blob([json], { type: 'application/json' });
+  const recordExport = () => {
+    StorageModule.setConfig({ lastExportedAt: new Date().toISOString() });
+  };
+
+  const downloadBlob = (content, mimeType, filename) => {
+    const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const stamp = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = `expense-data-${stamp}.json`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  };
+
+  const exportData = () => {
+    const json = StorageModule.exportJSON();
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadBlob(json, 'application/json', `expense-data-${stamp}.json`);
+    recordExport();
     RenderModule.showToast('Đã export dữ liệu ra file JSON', 'success');
+  };
+
+  const escapeCSV = (value) => {
+    const str = value === null || value === undefined ? '' : String(value);
+    if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+    return str;
+  };
+
+  const exportCSV = () => {
+    const config = StorageModule.getConfig();
+    const expenses = FilterModule.applyFilters(StorageModule.getExpenses());
+    if (expenses.length === 0) {
+      RenderModule.showToast('Không có khoản chi nào để export (theo bộ lọc hiện tại)', 'info');
+      return;
+    }
+    const personName = (id) => (id === 'A' ? config.personA.name : config.personB.name);
+    const header = ['Ngày', 'Mô tả', 'Danh mục', 'Số tiền', 'Người trả', 'Loại', 'Người chịu', 'Ghi chú'];
+    const rows = expenses.map((e) => [
+      e.date,
+      e.description,
+      StorageModule.CATEGORY_LABELS_VI[e.category] || e.category,
+      e.amount,
+      personName(e.paidBy),
+      e.expenseType === 'Shared' ? 'Chung' : 'Cá nhân',
+      e.expenseType === 'Personal' ? personName(e.owner) : '—',
+      e.notes || ''
+    ].map(escapeCSV).join(','));
+    const csv = '﻿' + [header.map(escapeCSV).join(','), ...rows].join('\n');
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadBlob(csv, 'text/csv;charset=utf-8;', `expense-data-${stamp}.csv`);
+    recordExport();
+    RenderModule.showToast('Đã export dữ liệu ra file CSV', 'success');
   };
 
   const importData = async (file) => {
@@ -719,7 +864,7 @@ const ImportExportModule = (() => {
     }
   };
 
-  return { exportData, importData };
+  return { exportData, exportCSV, importData, recordExport };
 })();
 
 /* ============================================================================
@@ -744,18 +889,33 @@ const EventHandlers = (() => {
     document.getElementById('btnResetForm').addEventListener('click', FormModule.resetForm);
     document.getElementById('expenseType').addEventListener('change', (e) => FormModule.handleExpenseTypeChange(e.target.value));
 
-    document.getElementById('expenseTableBody').addEventListener('click', async (e) => {
+    document.getElementById('expenseTableBody').addEventListener('click', (e) => {
       const editBtn = e.target.closest('.btn-edit');
+      const dupBtn = e.target.closest('.btn-duplicate');
       const delBtn = e.target.closest('.btn-delete');
       if (editBtn) FormModule.openEditModal(editBtn.dataset.id);
+      if (dupBtn) FormModule.openDuplicateModal(dupBtn.dataset.id);
       if (delBtn) {
-        const ok = await RenderModule.confirmDialog('Bạn có chắc muốn xóa khoản chi này không?');
-        if (ok) {
-          StorageModule.deleteExpense(delBtn.dataset.id);
+        const id = delBtn.dataset.id;
+        const expense = StorageModule.getExpenses().find((exp) => exp.id === id);
+        if (!expense) return;
+        StorageModule.deleteExpense(id);
+        RenderModule.renderAll();
+        RenderModule.showToast('Đã xóa khoản chi', 'info', 6000, 'Hoàn tác', () => {
+          StorageModule.saveExpenses([...StorageModule.getExpenses(), expense]);
           RenderModule.renderAll();
-          RenderModule.showToast('Đã xóa khoản chi', 'info');
-        }
+        });
       }
+    });
+  };
+
+  const bindTableSort = () => {
+    document.querySelectorAll('.expense-table th.sortable').forEach((th) => {
+      th.addEventListener('click', () => {
+        FilterModule.setSort(th.dataset.sortField);
+        const expenses = StorageModule.getExpenses();
+        RenderModule.renderExpenseTable(FilterModule.applyFilters(expenses));
+      });
     });
   };
 
@@ -817,6 +977,8 @@ const EventHandlers = (() => {
 
   const bindDataManagement = () => {
     document.getElementById('btnExport').addEventListener('click', ImportExportModule.exportData);
+    document.getElementById('btnExportCsv').addEventListener('click', ImportExportModule.exportCSV);
+    document.getElementById('btnPrint').addEventListener('click', () => window.print());
     document.getElementById('btnImport').addEventListener('click', () => document.getElementById('fileInput').click());
     document.getElementById('fileInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -854,9 +1016,33 @@ const EventHandlers = (() => {
     });
   };
 
+  const checkBackupReminder = () => {
+    const expenses = StorageModule.getExpenses();
+    if (expenses.length === 0) return;
+
+    const config = StorageModule.getConfig();
+    const now = Date.now();
+    const snoozedUntil = config.backupReminderSnoozedUntil ? new Date(config.backupReminderSnoozedUntil).getTime() : 0;
+    if (now < snoozedUntil) return;
+
+    const lastExport = config.lastExportedAt ? new Date(config.lastExportedAt).getTime() : null;
+    const daysSinceExport = lastExport ? (now - lastExport) / (1000 * 60 * 60 * 24) : Infinity;
+    if (daysSinceExport <= 14) return;
+
+    StorageModule.setConfig({ backupReminderSnoozedUntil: new Date(now + 2 * 24 * 60 * 60 * 1000).toISOString() });
+    RenderModule.showToast(
+      'Đã lâu chưa sao lưu dữ liệu — nên Export JSON để tránh mất dữ liệu khi đổi máy/xóa cache',
+      'warning',
+      8000,
+      'Xuất dữ liệu',
+      () => ImportExportModule.exportData()
+    );
+  };
+
   const init = () => {
     bindModalCloseTriggers();
     bindExpenseForm();
+    bindTableSort();
     bindFilters();
     bindSettings();
     bindDarkMode();
@@ -867,7 +1053,7 @@ const EventHandlers = (() => {
     RenderModule.renderCategoryOptions(document.getElementById('filterCategory'), '', true);
   };
 
-  return { init };
+  return { init, checkBackupReminder };
 })();
 
 /* ============================================================================
@@ -875,6 +1061,8 @@ const EventHandlers = (() => {
    ============================================================================ */
 document.addEventListener('DOMContentLoaded', () => {
   StorageModule.initDefaults();
+  Icons.applyAll();
   EventHandlers.init();
   RenderModule.renderAll();
+  EventHandlers.checkBackupReminder();
 });

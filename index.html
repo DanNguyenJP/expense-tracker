@@ -17,9 +17,9 @@
     <div class="nav-actions">
       <button id="btnQuickAdd" class="btn btn-secondary btn-sm" title="Thêm nhanh (N)">+ Nhanh</button>
       <button id="btnDarkMode" class="btn btn-icon" title="Chuyển giao diện sáng/tối" aria-label="Toggle dark mode">
-        <span id="darkModeIcon">🌙</span>
+        <span id="darkModeIcon" data-icon="moon"></span>
       </button>
-      <button id="btnSettings" class="btn btn-icon" title="Cài đặt" aria-label="Settings">⚙️</button>
+      <button id="btnSettings" class="btn btn-icon" title="Cài đặt" aria-label="Settings"><span data-icon="settings"></span></button>
     </div>
   </nav>
 </header>
@@ -62,8 +62,10 @@
   <section class="action-bar">
     <button id="btnAddExpense" class="btn btn-primary">+ Thêm chi tiêu</button>
     <div class="action-bar-right">
-      <button id="btnExport" class="btn btn-secondary">⬇ Export JSON</button>
-      <button id="btnImport" class="btn btn-secondary">⬆ Import JSON</button>
+      <button id="btnPrint" class="btn btn-secondary"><span data-icon="print"></span> In báo cáo</button>
+      <button id="btnExport" class="btn btn-secondary"><span data-icon="export"></span> Export JSON</button>
+      <button id="btnExportCsv" class="btn btn-secondary"><span data-icon="csv"></span> Export CSV</button>
+      <button id="btnImport" class="btn btn-secondary"><span data-icon="import"></span> Import JSON</button>
       <input type="file" id="fileInput" accept=".json" style="display:none;">
     </div>
   </section>
@@ -114,12 +116,12 @@
       <table class="expense-table">
         <thead>
           <tr>
-            <th>Ngày</th>
-            <th>Mô tả</th>
-            <th>Danh mục</th>
-            <th>Số tiền</th>
-            <th>Người trả</th>
-            <th>Loại</th>
+            <th class="sortable" data-sort-field="date">Ngày <span class="sort-indicator"></span></th>
+            <th class="sortable" data-sort-field="description">Mô tả <span class="sort-indicator"></span></th>
+            <th class="sortable" data-sort-field="category">Danh mục <span class="sort-indicator"></span></th>
+            <th class="sortable" data-sort-field="amount">Số tiền <span class="sort-indicator"></span></th>
+            <th class="sortable" data-sort-field="paidBy">Người trả <span class="sort-indicator"></span></th>
+            <th class="sortable" data-sort-field="expenseType">Loại <span class="sort-indicator"></span></th>
             <th>Người chịu</th>
             <th>Hành động</th>
           </tr>
@@ -152,7 +154,7 @@
   <section class="data-section">
     <h2>Quản lý dữ liệu</h2>
     <div class="data-actions">
-      <button id="btnClear" class="btn btn-danger">🗑 Xóa toàn bộ dữ liệu</button>
+      <button id="btnClear" class="btn btn-danger"><span data-icon="delete"></span> Xóa toàn bộ dữ liệu</button>
     </div>
   </section>
 
@@ -163,7 +165,7 @@
   <div class="modal-content">
     <div class="modal-header">
       <h2 id="modalTitle">Thêm chi tiêu</h2>
-      <button class="btn btn-icon btn-close-modal" data-close="expenseModal" aria-label="Đóng">✕</button>
+      <button class="btn btn-icon btn-close-modal" data-close="expenseModal" aria-label="Đóng"><span data-icon="close"></span></button>
     </div>
     <form id="expenseForm" novalidate>
       <input type="hidden" id="expenseId">
@@ -231,7 +233,7 @@
   <div class="modal-content modal-compact">
     <div class="modal-header">
       <h2>Cài đặt</h2>
-      <button class="btn btn-icon btn-close-modal" data-close="settingsModal" aria-label="Đóng">✕</button>
+      <button class="btn btn-icon btn-close-modal" data-close="settingsModal" aria-label="Đóng"><span data-icon="close"></span></button>
     </div>
     <form id="settingsForm">
       <div class="form-group">
