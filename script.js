@@ -111,10 +111,29 @@ const StorageModule = (() => {
   const importJSON = (jsonString) => {
     const data = JSON.parse(jsonString);
     if (!Array.isArray(data.expenses)) throw new Error('Invalid file: missing expenses array');
-    saveExpenses(data.expenses);
+    const merged = getExpenses();
+    const isDuplicate = (expense) => merged.some((e) =>
+      e.id === expense.id ||
+      (e.date === expense.date &&
+        e.description.trim().toLowerCase() === expense.description.trim().toLowerCase() &&
+        e.amount === expense.amount &&
+        e.paidBy === expense.paidBy)
+    );
+    let added = 0;
+    let skipped = 0;
+    data.expenses.forEach((expense) => {
+      if (isDuplicate(expense)) {
+        skipped += 1;
+      } else {
+        merged.push(expense);
+        added += 1;
+      }
+    });
+    saveExpenses(merged);
     if (data.config && typeof data.config === 'object') {
-      localStorage.setItem(CONFIG_KEY, JSON.stringify({ ...DEFAULT_CONFIG, ...data.config }));
+      setConfig(data.config);
     }
+    return { added, skipped };
   };
 
   const clearAll = () => {
@@ -687,11 +706,14 @@ const ImportExportModule = (() => {
   const importData = async (file) => {
     try {
       const text = await file.text();
-      const proceed = await RenderModule.confirmDialog('Import sẽ ghi đè toàn bộ dữ liệu hiện tại. Tiếp tục?');
+      const proceed = await RenderModule.confirmDialog('Import sẽ thêm các khoản chi mới vào danh sách hiện tại (tự bỏ qua khoản trùng lặp). Tiếp tục?');
       if (!proceed) return;
-      StorageModule.importJSON(text);
+      const { added, skipped } = StorageModule.importJSON(text);
       RenderModule.renderAll();
-      RenderModule.showToast('Đã import dữ liệu thành công', 'success');
+      const msg = skipped > 0
+        ? `Đã thêm ${added} khoản chi mới (bỏ qua ${skipped} khoản trùng lặp)`
+        : `Đã thêm ${added} khoản chi mới`;
+      RenderModule.showToast(msg, 'success');
     } catch (err) {
       RenderModule.showToast('File JSON không hợp lệ', 'error');
     }
