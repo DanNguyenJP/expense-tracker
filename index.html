@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apartment Split — Chia tiền thuê nhà</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="header">
+  <nav class="navbar">
+    <div class="logo">
+      <span class="logo-icon">💰</span>
+      <h1>Apartment Split</h1>
+    </div>
+    <div class="nav-actions">
+      <button id="btnQuickAdd" class="btn btn-secondary btn-sm" title="Thêm nhanh (N)">+ Nhanh</button>
+      <button id="btnDarkMode" class="btn btn-icon" title="Chuyển giao diện sáng/tối" aria-label="Toggle dark mode">
+        <span id="darkModeIcon">🌙</span>
+      </button>
+      <button id="btnSettings" class="btn btn-icon" title="Cài đặt" aria-label="Settings">⚙️</button>
+    </div>
+  </nav>
+</header>
+
+<main class="container">
+
+  <!-- DASHBOARD -->
+  <section class="dashboard">
+    <h2>Tổng quan</h2>
+    <div class="summary-cards">
+      <div class="card card-total">
+        <div class="card-label">Tổng chi tiêu</div>
+        <div class="card-amount" id="totalAmount">0 ₫</div>
+      </div>
+      <div class="card card-shared">
+        <div class="card-label">Chi tiêu chung</div>
+        <div class="card-amount" id="sharedAmount">0 ₫</div>
+      </div>
+      <div class="card card-personA">
+        <div class="card-label" id="personALabel">Người A</div>
+        <div class="card-amount" id="personAAmount">0 ₫</div>
+        <div class="card-sub" id="personAPaid">Đã trả: 0 ₫</div>
+      </div>
+      <div class="card card-personB">
+        <div class="card-label" id="personBLabel">Người B</div>
+        <div class="card-amount" id="personBAmount">0 ₫</div>
+        <div class="card-sub" id="personBPaid">Đã trả: 0 ₫</div>
+      </div>
+    </div>
+    <div class="settlement-card" id="settlementCard">
+      <div class="settlement-icon">⚖️</div>
+      <div class="settlement-body">
+        <div class="settlement-label">Kết quả cân đối</div>
+        <div class="settlement-text" id="settlementText">Chưa có dữ liệu</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACTION BAR -->
+  <section class="action-bar">
+    <button id="btnAddExpense" class="btn btn-primary">+ Thêm chi tiêu</button>
+    <div class="action-bar-right">
+      <button id="btnExport" class="btn btn-secondary">⬇ Export JSON</button>
+      <button id="btnImport" class="btn btn-secondary">⬆ Import JSON</button>
+      <input type="file" id="fileInput" accept=".json" style="display:none;">
+    </div>
+  </section>
+
+  <!-- FILTERS -->
+  <section class="filters">
+    <div class="filter-group">
+      <label for="filterMonth">Tháng</label>
+      <input type="month" id="filterMonth" class="filter-input">
+    </div>
+    <div class="filter-group">
+      <label for="filterCategory">Danh mục</label>
+      <select id="filterCategory" class="filter-input">
+        <option value="">Tất cả</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="filterPaidBy">Người trả</label>
+      <select id="filterPaidBy" class="filter-input">
+        <option value="">Tất cả</option>
+        <option value="A" id="filterOptionA">Người A</option>
+        <option value="B" id="filterOptionB">Người B</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="filterExpenseType">Loại</label>
+      <select id="filterExpenseType" class="filter-input">
+        <option value="">Tất cả</option>
+        <option value="Shared">Chung</option>
+        <option value="Personal">Cá nhân</option>
+      </select>
+    </div>
+    <div class="filter-group filter-search">
+      <label for="filterKeyword">Tìm kiếm</label>
+      <input type="text" id="filterKeyword" class="filter-input" placeholder="Mô tả hoặc ghi chú...">
+    </div>
+    <button id="btnResetFilters" class="btn btn-secondary btn-sm filter-reset">Đặt lại</button>
+  </section>
+
+  <!-- EXPENSE TABLE -->
+  <section class="expenses-section">
+    <h2>Danh sách chi tiêu</h2>
+    <div id="emptyState" class="empty-state">
+      <div class="empty-icon">🧾</div>
+      <p>Chưa có khoản chi nào. Nhấn "+ Thêm chi tiêu" để bắt đầu!</p>
+    </div>
+    <div class="table-wrapper" id="tableWrapper" style="display:none;">
+      <table class="expense-table">
+        <thead>
+          <tr>
+            <th>Ngày</th>
+            <th>Mô tả</th>
+            <th>Danh mục</th>
+            <th>Số tiền</th>
+            <th>Người trả</th>
+            <th>Loại</th>
+            <th>Người chịu</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="expenseTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- STATISTICS -->
+  <section class="stats-section">
+    <h2>Thống kê</h2>
+    <div class="charts-grid">
+      <div class="chart-container">
+        <h3>Theo danh mục</h3>
+        <canvas id="chartCategory" width="380" height="260"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Theo người</h3>
+        <canvas id="chartPerson" width="380" height="260"></canvas>
+      </div>
+      <div class="chart-container">
+        <h3>Theo tháng</h3>
+        <canvas id="chartMonthly" width="380" height="260"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATA MANAGEMENT -->
+  <section class="data-section">
+    <h2>Quản lý dữ liệu</h2>
+    <div class="data-actions">
+      <button id="btnClear" class="btn btn-danger">🗑 Xóa toàn bộ dữ liệu</button>
+    </div>
+  </section>
+
+</main>
+
+<!-- ADD/EDIT EXPENSE MODAL -->
+<div id="expenseModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modalTitle">Thêm chi tiêu</h2>
+      <button class="btn btn-icon btn-close-modal" data-close="expenseModal" aria-label="Đóng">✕</button>
+    </div>
+    <form id="expenseForm" novalidate>
+      <input type="hidden" id="expenseId">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="expenseDate">Ngày</label>
+          <input type="date" id="expenseDate" required>
+          <span class="form-error" id="errDate"></span>
+        </div>
+        <div class="form-group">
+          <label for="expenseAmount">Số tiền (VND)</label>
+          <input type="number" id="expenseAmount" min="1" step="1000" placeholder="0" required>
+          <span class="form-error" id="errAmount"></span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="expenseDescription">Mô tả</label>
+        <input type="text" id="expenseDescription" placeholder="VD: Tiền điện tháng 7" required>
+        <span class="form-error" id="errDescription"></span>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="expenseCategory">Danh mục</label>
+          <select id="expenseCategory" required></select>
+        </div>
+        <div class="form-group">
+          <label for="expensePaidBy">Người trả</label>
+          <select id="expensePaidBy" required>
+            <option value="A" id="paidByOptionA">Người A</option>
+            <option value="B" id="paidByOptionB">Người B</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="expenseType">Loại chi tiêu</label>
+          <select id="expenseType">
+            <option value="Shared">Chung (chia 50/50)</option>
+            <option value="Personal">Cá nhân</option>
+          </select>
+        </div>
+        <div class="form-group" id="ownerGroup" style="display:none;">
+          <label for="expenseOwner">Người chịu</label>
+          <select id="expenseOwner">
+            <option value="A" id="ownerOptionA">Người A</option>
+            <option value="B" id="ownerOptionB">Người B</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="expenseNotes">Ghi chú (không bắt buộc)</label>
+        <textarea id="expenseNotes" rows="2" placeholder="Ghi chú thêm..."></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" id="btnResetForm" class="btn btn-secondary">Reset</button>
+        <button type="button" class="btn btn-secondary" data-close="expenseModal">Hủy</button>
+        <button type="submit" class="btn btn-primary">Lưu</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="modal">
+  <div class="modal-content modal-compact">
+    <div class="modal-header">
+      <h2>Cài đặt</h2>
+      <button class="btn btn-icon btn-close-modal" data-close="settingsModal" aria-label="Đóng">✕</button>
+    </div>
+    <form id="settingsForm">
+      <div class="form-group">
+        <label for="personANameInput">Tên người A</label>
+        <input type="text" id="personANameInput" required>
+      </div>
+      <div class="form-group">
+        <label for="personBNameInput">Tên người B</label>
+        <input type="text" id="personBNameInput" required>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" data-close="settingsModal">Đóng</button>
+        <button type="submit" class="btn btn-primary">Lưu</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div id="confirmDialog" class="modal">
+  <div class="modal-content modal-compact">
+    <p id="confirmMessage" class="confirm-message"></p>
+    <div class="form-actions">
+      <button id="btnConfirmCancel" class="btn btn-secondary">Hủy</button>
+      <button id="btnConfirmOk" class="btn btn-danger">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
