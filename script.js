@@ -288,6 +288,7 @@ const Icons = {
   import: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>',
   print: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
   csv: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>',
+  share: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51L8.59 10.49"/></svg>',
   sortAsc: '▲',
   sortDesc: '▼',
 
@@ -796,6 +797,68 @@ const ImportExportModule = (() => {
     StorageModule.setConfig({ lastExportedAt: new Date().toISOString() });
   };
 
+  const textEncoder = new TextEncoder();
+  const textDecoder = new TextDecoder();
+
+  const toBase64Url = (bytes) => {
+    let binary = '';
+    bytes.forEach((b) => { binary += String.fromCharCode(b); });
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  };
+
+  const fromBase64Url = (base64url) => {
+    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  };
+
+  const encodeShareData = (str) => toBase64Url(textEncoder.encode(str));
+  const decodeShareData = (base64url) => textDecoder.decode(fromBase64Url(base64url));
+
+  const generateShareLink = async () => {
+    const expenses = StorageModule.getExpenses();
+    if (expenses.length === 0) {
+      RenderModule.showToast('Chưa có dữ liệu để tạo link chia sẻ', 'info');
+      return;
+    }
+    const payload = JSON.stringify({ expenses, config: StorageModule.getConfig() });
+    const encoded = encodeShareData(payload);
+    const link = `${location.origin}${location.pathname}#share=${encoded}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      RenderModule.showToast('Đã copy link chia sẻ — gửi qua Zalo/Messenger cho người kia', 'success', 5000);
+    } catch (err) {
+      window.prompt('Copy link chia sẻ bên dưới:', link);
+    }
+  };
+
+  const importFromShareLink = async () => {
+    const hash = location.hash;
+    if (!hash.startsWith('#share=')) return;
+    const encoded = hash.slice('#share='.length);
+    history.replaceState(null, '', location.pathname + location.search);
+    try {
+      const decoded = decodeShareData(encoded);
+      const data = JSON.parse(decoded);
+      if (!Array.isArray(data.expenses)) throw new Error('Invalid share link payload');
+      const proceed = await RenderModule.confirmDialog(
+        `Link chia sẻ chứa ${data.expenses.length} khoản chi. Nhập vào danh sách hiện tại (bỏ qua khoản trùng lặp)?`
+      );
+      if (!proceed) return;
+      const { added, skipped } = StorageModule.importJSON(decoded);
+      RenderModule.renderAll();
+      const msg = skipped > 0
+        ? `Đã thêm ${added} khoản chi mới (bỏ qua ${skipped} khoản trùng lặp)`
+        : `Đã thêm ${added} khoản chi mới`;
+      RenderModule.showToast(msg, 'success');
+    } catch (err) {
+      RenderModule.showToast('Link chia sẻ không hợp lệ hoặc bị cắt ngắn — xin gửi lại link mới', 'error');
+    }
+  };
+
   const downloadBlob = (content, mimeType, filename) => {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
@@ -864,7 +927,7 @@ const ImportExportModule = (() => {
     }
   };
 
-  return { exportData, exportCSV, importData, recordExport };
+  return { exportData, exportCSV, importData, recordExport, generateShareLink, importFromShareLink };
 })();
 
 /* ============================================================================
@@ -978,6 +1041,7 @@ const EventHandlers = (() => {
   const bindDataManagement = () => {
     document.getElementById('btnExport').addEventListener('click', ImportExportModule.exportData);
     document.getElementById('btnExportCsv').addEventListener('click', ImportExportModule.exportCSV);
+    document.getElementById('btnShareLink').addEventListener('click', ImportExportModule.generateShareLink);
     document.getElementById('btnPrint').addEventListener('click', () => window.print());
     document.getElementById('btnImport').addEventListener('click', () => document.getElementById('fileInput').click());
     document.getElementById('fileInput').addEventListener('change', (e) => {
@@ -1064,5 +1128,6 @@ document.addEventListener('DOMContentLoaded', () => {
   Icons.applyAll();
   EventHandlers.init();
   RenderModule.renderAll();
+  ImportExportModule.importFromShareLink();
   EventHandlers.checkBackupReminder();
 });
